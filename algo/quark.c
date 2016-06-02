@@ -45,11 +45,11 @@ typedef struct {
  sph_haval256_5_context   haval1, haval2;
 
 
-} quarkhash_context_holder;
+} hmq1725hash_context_holder;
 
-static quarkhash_context_holder base_contexts;
+static hmq1725hash_context_holder base_contexts;
 
-void init_quarkhash_contexts()
+void init_hmq1725hash_contexts()
 {
     sph_blake512_init(&base_contexts.blake1);
     sph_bmw512_init(&base_contexts.bmw1);
@@ -90,10 +90,10 @@ sph_haval256_5_init(&base_contexts.haval2);
 
 }
 
-extern void quarkhash(void *state, const void *input)
+extern void hmq1725hash(void *state, const void *input)
 {
 
-	quarkhash_context_holder ctx;
+	hmq1725hash_context_holder ctx;
 
     uint32_t mask = 24;
     uint32_t zero = 0;
@@ -286,7 +286,7 @@ extern void quarkhash(void *state, const void *input)
 	
 }
 
-int scanhash_quark(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
+int scanhash_hmq1725(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 	uint32_t max_nonce, uint64_t *hashes_done)
 {
 	uint32_t n = pdata[19] - 1;
@@ -317,7 +317,7 @@ int scanhash_quark(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 		do {
 			pdata[19] = ++n;
 			be32enc(&endiandata[19], n); 
-			quarkhash(hash64, endiandata);
+			hmq1725hash(hash64, endiandata);
 			if (((hash64[7]&0xFFFFFFFF)==0) && 
 					fulltest(hash64, ptarget)) {
 				*hashes_done = n - first_nonce + 1;
@@ -330,7 +330,7 @@ int scanhash_quark(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 		do {
 			pdata[19] = ++n;
 			be32enc(&endiandata[19], n); 
-			quarkhash(hash64, endiandata);
+			hmq1725hash(hash64, endiandata);
 			if (((hash64[7]&0xFFFFFFF0)==0) && 
 					fulltest(hash64, ptarget)) {
 				*hashes_done = n - first_nonce + 1;
@@ -343,7 +343,7 @@ int scanhash_quark(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 		do {
 			pdata[19] = ++n;
 			be32enc(&endiandata[19], n); 
-			quarkhash(hash64, endiandata);
+			hmq1725hash(hash64, endiandata);
 			if (((hash64[7]&0xFFFFFF00)==0) && 
 					fulltest(hash64, ptarget)) {
 				*hashes_done = n - first_nonce + 1;
@@ -356,7 +356,7 @@ int scanhash_quark(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 		do {
 			pdata[19] = ++n;
 			be32enc(&endiandata[19], n); 
-			quarkhash(hash64, endiandata);
+			hmq1725hash(hash64, endiandata);
 			if (((hash64[7]&0xFFFFF000)==0) && 
 					fulltest(hash64, ptarget)) {
 				*hashes_done = n - first_nonce + 1;
@@ -370,7 +370,7 @@ int scanhash_quark(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 		do {
 			pdata[19] = ++n;
 			be32enc(&endiandata[19], n); 
-			quarkhash(hash64, endiandata);
+			hmq1725hash(hash64, endiandata);
 			if (((hash64[7]&0xFFFF0000)==0) && 
 					fulltest(hash64, ptarget)) {
 				*hashes_done = n - first_nonce + 1;
@@ -384,7 +384,7 @@ int scanhash_quark(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 		do {
 			pdata[19] = ++n;
 			be32enc(&endiandata[19], n); 
-			quarkhash(hash64, endiandata);
+			hmq1725hash(hash64, endiandata);
 			if (fulltest(hash64, ptarget)) {
 				*hashes_done = n - first_nonce + 1;
 				return true;

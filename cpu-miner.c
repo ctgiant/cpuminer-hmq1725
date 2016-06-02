@@ -77,9 +77,8 @@ enum algos {
 	ALGO_SHA256D,     /* SHA-256d */
 	ALGO_KECCAK,      /* Keccak */
 	ALGO_HEAVY,       /* Heavy */
-	ALGO_NEOSCRYPT,   /* NeoScrypt(128, 2, 1) with Salsa20/20 and ChaCha20/20 */
-	ALGO_QUARK,       /* Quark */
-	ALGO_ANIME,       /* Animecoin (Quark variant) */
+	ALGO_HMQ1725,       /* hmq1725 */
+	ALGO_ANIME,       /* Animecoin (hmq1725 variant) */
 	ALGO_BLAKE,       /* Blake 256 */
 	ALGO_BLAKECOIN,   /* Simplified 8 rounds Blake 256 */
 	ALGO_BLAKE2S,     /* Blake2s */
@@ -113,8 +112,7 @@ static const char *algo_names[] = {
 	"sha256d",
 	"keccak",
 	"heavy",
-	"neoscrypt",
-	"quark",
+	"hmq1725",
 	"anime",
 	"blake",
 	"blakecoin",
@@ -257,11 +255,10 @@ Options:\n\
                           luffa        Luffa\n\
                           lyra2        Lyra2RE\n\
                           myr-gr       Myriad-Groestl\n\
-                          neoscrypt    NeoScrypt(128, 2, 1)\n\
                           nist5        Nist5\n\
                           pluck        Pluck:128 (Supcoin)\n\
                           pentablake   Pentablake\n\
-                          quark        HMQ1725 (ESP)\n\
+                          hmq1725        HMQ1725 (ESP)\n\
                           qubit        Qubit\n\
                           shavite3     Shavite3\n\
                           skein        Skein+Sha (Skeincoin)\n\
@@ -288,7 +285,6 @@ Options:\n\
                           long polling is unavailable, in seconds (default: 5)\n\
   -f, --diff-factor     Divide req. difficulty by this factor (std is 1.0)\n\
   -m, --diff-multiplier Multiply difficulty by this factor (std is 1.0)\n\
-  -n, --nfactor         neoscrypt N-Factor\n\
       --coinbase-addr=ADDR  payout address for solo mining\n\
       --coinbase-sig=TEXT  data to insert in the coinbase when possible\n\
       --no-longpoll     disable long polling support\n\
@@ -427,13 +423,22 @@ static inline void affine_to_cpu(int id, int cpu)
 	CPU_SET(cpu, &set);
 	cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(cpuset_t), &set);
 }
-#else /* Windows */
-static inline void drop_policy(void) { }
-static void affine_to_cpu_mask(int id, uint8_t mask) {
-	if (id == -1)
-		SetProcessAffinityMask(GetCurrentProcess(), mask);
-	else
-		SetThreadAffinityMask(GetCurrentThread(), mask);
+//#else /* Windows */
+//static inline void drop_policy(void) { }
+//static void affine_to_cpu_mask(int id, uint8_t mask) {
+//	if (id == -1)
+//		SetProcessAffinityMask(GetCurrentProcess(), mask);
+//	else
+//		SetThreadAffinityMask(GetCurrentThread(), mask);
+//}
+//#endif
+#else
+static inline void drop_policy(void)
+{
+}
+
+static inline void affine_to_cpu_mask(int id, uint8_t mask)
+{
 }
 #endif
 
@@ -650,7 +655,7 @@ static bool work_decode(const json_t *val, struct work *work)
 	int data_size = sizeof(work->data), target_size = sizeof(work->target);
 	int adata_sz = ARRAY_SIZE(work->data), atarget_sz = ARRAY_SIZE(work->target);
 
-	if (opt_algo == ALGO_DROP || opt_algo == ALGO_NEOSCRYPT || opt_algo == ALGO_ZR5) {
+	if (opt_algo == ALGO_DROP || opt_algo == ALGO_ZR5) {
 		data_size = 80; target_size = 32;
 		adata_sz = data_size /  sizeof(uint32_t);
 		atarget_sz = target_size /  sizeof(uint32_t);
@@ -1182,7 +1187,7 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 			le32enc(&ntime, work->data[17]);
 			le32enc(&nonce, work->data[19]);
 
-			if (opt_algo == ALGO_DROP || opt_algo == ALGO_NEOSCRYPT || opt_algo == ALGO_ZR5) {
+			if (opt_algo == ALGO_DROP || opt_algo == ALGO_ZR5) {
 				/* reversed */
 				be32enc(&ntime, work->data[17]);
 				be32enc(&nonce, work->data[19]);
@@ -1296,7 +1301,7 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 			json_decref(val);
 			return true;
 
-		} else if (opt_algo == ALGO_DROP || opt_algo == ALGO_NEOSCRYPT || opt_algo == ALGO_ZR5) {
+		} else if (opt_algo == ALGO_DROP || opt_algo == ALGO_ZR5) {
 			/* different data size */
 			data_size = 80;
 		}
@@ -1732,7 +1737,7 @@ static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 		work->data[17] = le32dec(sctx->job.ntime);
 		work->data[18] = le32dec(sctx->job.nbits);
 
-		if (opt_algo == ALGO_DROP || opt_algo == ALGO_NEOSCRYPT || opt_algo == ALGO_ZR5) {
+		if (opt_algo == ALGO_DROP || opt_algo == ALGO_ZR5) {
 			/* reversed endian */
 			for (i = 0; i <= 18; i++)
 				work->data[i] = swab32(work->data[i]);
@@ -1753,9 +1758,8 @@ static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 		switch (opt_algo) {
 			case ALGO_DROP:
 			case ALGO_SCRYPT:
-			case ALGO_NEOSCRYPT:
 			case ALGO_PLUCK:
-			case ALGO_QUARK:
+			case ALGO_HMQ1725:
 				diff_to_target(work->target, sctx->job.diff / (65536.0 * opt_diff_factor));
 				break;
 			case ALGO_FRESH:
@@ -1907,11 +1911,6 @@ static void *miner_thread(void *userdata)
 			while (!jsonrpc_2 && time(NULL) >= g_work_time + 120)
 				sleep(1);
 
-			while (!stratum.job.diff && opt_algo == ALGO_NEOSCRYPT) {
-				applog(LOG_DEBUG, "Waiting for Stratum to set the job difficulty");
-				sleep(1);
-			}
-
 			pthread_mutex_lock(&g_work_lock);
 			if ((*nonceptr) >= end_nonce
 				&& !(jsonrpc_2 ? memcmp(work.data, g_work.data, 39) ||
@@ -2000,13 +1999,6 @@ static void *miner_thread(void *userdata)
 		if (max64 <= 0) {
 			switch (opt_algo) {
 			case ALGO_SCRYPT:
-			case ALGO_NEOSCRYPT:
-				max64 = opt_scrypt_n < 16 ? 0x3ffff : 0x3fffff / opt_scrypt_n;
-				if (opt_nfactor > 3)
-					max64 >>= (opt_nfactor - 3);
-				else if (opt_nfactor > 16)
-					max64 = 0xF;
-				break;
 			case ALGO_CRYPTONIGHT:
 				max64 = 0x40LL;
 				break;
@@ -2079,12 +2071,8 @@ static void *miner_thread(void *userdata)
 			rc = scanhash_heavy(thr_id, work.data, work.target, max_nonce,
 					&hashes_done);
 			break;
-		case ALGO_NEOSCRYPT:
-			rc = scanhash_neoscrypt(thr_id, work.data, work.target,
-					max_nonce, &hashes_done, 0x80000020 | (opt_nfactor << 8));
-			break;
-		case ALGO_QUARK:
-			rc = scanhash_quark(thr_id, work.data, work.target, max_nonce,
+		case ALGO_HMQ1725:
+			rc = scanhash_hmq1725(thr_id, work.data, work.target, max_nonce,
 					&hashes_done);
 			break;
 		case ALGO_ANIME:
@@ -2668,17 +2656,6 @@ void parse_arg(int key, char *arg)
 	case 1030: /* --api-remote */
 		opt_api_remote = 1;
 		break;
-	case 'n':
-		if (opt_algo == ALGO_NEOSCRYPT) {
-			v = atoi(arg);
-			/* Nfactor = lb(N) - 1; N = (1 << (Nfactor + 1)) */
-			if ((v < 0) || (v > 30)) {
-				fprintf(stderr, "incorrect Nfactor %d\n", v);
-				show_usage_and_exit(1);
-			}
-			opt_nfactor = v;
-		}
-		break;
 	case 'B':
 		opt_background = true;
 		use_colors = false;
@@ -3100,8 +3077,8 @@ int main(int argc, char *argv[]) {
 	if (!opt_n_threads)
 		opt_n_threads = 1;
 
-	if (opt_algo == ALGO_QUARK) {
-		init_quarkhash_contexts();
+	if (opt_algo == ALGO_HMQ1725) {
+		init_hmq1725hash_contexts();
 	} else if(opt_algo == ALGO_CRYPTONIGHT) {
 //	if(opt_algo == ALGO_CRYPTONIGHT) {
 		jsonrpc_2 = true;

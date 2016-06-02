@@ -1823,9 +1823,6 @@ void print_hash_tests(void)
 	myriadhash(&hash[0], &buf[0]);
 	printpfx("myr-gr", hash);
 
-	neoscrypt((uchar*) &hash[0], (uchar*)&buf[0], 80000620);
-	printpfx("neoscrypt", hash);
-
 	nist5hash(&hash[0], &buf[0]);
 	printpfx("nist5", hash);
 
@@ -1836,8 +1833,8 @@ void print_hash_tests(void)
 	memset(&buf[0], 0, sizeof(buf));
 	printpfx("pluck", hash);
 
-	quarkhash(&hash[0], &buf[0]);
-	printpfx("quark", hash);
+	hmq1725hash(&hash[0], &buf[0]);
+	printpfx("hmq1725", hash);
 
 	qubithash(&hash[0], &buf[0]);
 	printpfx("qubit", hash);

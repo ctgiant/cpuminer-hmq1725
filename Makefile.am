@@ -64,11 +64,10 @@ cpuminer_SOURCES = \
   algo/myr-groestl.c \
   algo/keccak.c \
   algo/pentablake.c \
-  algo/quark.c \
-  algo/neoscrypt.c \
   algo/nist5.c \
   algo/pluck.c \
   algo/qubit.c \
+  algo/quark.c \
   algo/scrypt.c \
   algo/sha2.c \
   algo/skein.c \
@@ -82,8 +81,7 @@ cpuminer_SOURCES = \
 
 disable_flags =
 
-if USE_ASM
-   cpuminer_SOURCES += asm/neoscrypt_asm.S
+
 if ARCH_x86
    cpuminer_SOURCES += asm/sha2-x86.S asm/scrypt-x86.S asm/aesb-x86.S
 endif
@@ -92,9 +90,6 @@ if ARCH_x86_64
 endif
 if ARCH_ARM
    cpuminer_SOURCES += asm/sha2-arm.S asm/scrypt-arm.S
-endif
-else
-   disable_flags += -DNOASM
 endif
 
 if HAVE_WINDOWS
@@ -119,10 +114,6 @@ if HAVE_WINDOWS
 # copy/paste from generated Makefile
 common_ccflags = $(DEFS) $(ALL_INCLUDES) $(cpuminer_CPPFLAGS) $(CPPFLAGS) $(cpuminer_CFLAGS) $(CFLAGS)
 
-# special CFLAGS (if you find a simpler way to do that tell me ;)
-cpuminer-neoscrypt.o: neoscrypt.c
-	@echo "CUSTOM ${@}: ${filter %.o,${^}} ${filter %.c,${^}}"
-	$(CC) $(common_ccflags) -g -O3 $(gprof_cflags) -MT $@ -MD -MP -c -o $@ $<
 
 
 endif
